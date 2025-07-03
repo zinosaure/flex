@@ -169,18 +169,6 @@ def setenv(max_items: int = 100) -> str:
 
     return "Cannot fetch data from https://randomuser.me/api/"
 
-def flex_print(data: Flextable, tab_indent: int = 0):
-    print(("\t" * tab_indent), "-" * 20)
-    print(("\t" * tab_indent), str(data))
-    print(("\t" * tab_indent), "-" * 20)
-
-    for k, v in data.__dict__.items():
-        if isinstance(v, Flextable):
-            print(("\t" * tab_indent), f"{k}:")
-            flex_print(v, tab_indent + 1)
-        else:
-            print(("\t" * tab_indent), f"{k}: {v}")
-
 
 if __name__ == "__main__":
     Flexmeta.setPath(pathlib.Path(__file__).resolve().parent)
@@ -198,10 +186,10 @@ if __name__ == "__main__":
     selected_id = 10001
 
     if login := Login.load(selected_id):
-        flex_print(login)
+        print(login.to_json(4))
 
         if profile := Profile.load(login.id):
-            flex_print(profile)
+            print(profile.to_json(4))
 
     print("-----" * 5)
     login_s = Login().select()

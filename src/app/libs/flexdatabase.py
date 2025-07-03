@@ -1,6 +1,7 @@
-import math
 import os
+import json
 import glob
+import math
 import uuid
 import random
 import pickle
@@ -273,6 +274,15 @@ class Flextable(
 
     def select(self) -> "Flextable.Flexselect":
         return Flextable.Flexselect(self)
+
+    def to_json(self, indent: Optional[int] = None) -> str:
+        def default(o: object) -> Any:
+            try:
+                return o.__dict__
+            except Exception:
+                return str(o)
+            
+        return json.dumps(self.on_dump(), indent=indent, default=default)
 
     def on_dump(self) -> dict[str, Any]:
         items: dict[str, Any] = {}

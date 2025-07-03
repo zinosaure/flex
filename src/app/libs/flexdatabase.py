@@ -5,7 +5,6 @@ import uuid
 import pickle
 
 from pathlib import Path
-from json import JSONEncoder
 from collections import namedtuple
 from typing import Any, Optional, Callable
 
@@ -189,7 +188,7 @@ class Flexmeta:
             self.commits: list[tuple[str, int]] = []
 
         def __str__(self) -> str:
-            return f'Flexmeta.Journal(count={self.count}, next_id={self.next_id})'
+            return f"Flexmeta.Journal(count={self.count}, next_id={self.next_id})"
 
         def load(self) -> bool:
             if os.path.exists(self.filename):
@@ -230,9 +229,9 @@ class Flextable(
 
     def __getitem__(self, name: str) -> Any:
         return self.prop(name)
-    
+
     def __str__(self) -> str:
-        return f'{self.__class__.__name__}(flexmeta={self.flexmeta})'
+        return f"{self.__class__.__name__}(flexmeta={self.flexmeta})"
 
     @property
     def flexmeta(self) -> Flexmeta:

@@ -1,4 +1,3 @@
-import json
 import time
 import random
 import pathlib
@@ -187,13 +186,21 @@ if __name__ == "__main__":
     print("Flexmeta.RootPath:", Flexmeta.RootPath)
     print("-----" * 5)
 
+    if (
+        populate := input("Do you want to populate the database? [Y/N]: ")
+        .strip()
+        .upper()
+    ) == "Y":
+        setenv(100)
+        print("-----" * 5)
+
     selected_id = 10001
 
     if login := Login.load(selected_id):
         flex_print(login)
 
-    if profile := Profile.load(login.id):
-        flex_print(profile)
+        if profile := Profile.load(login.id):
+            flex_print(profile)
 
     print("-----" * 5)
     login_s = Login().select()

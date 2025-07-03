@@ -167,6 +167,7 @@ def setenv(max_items: int = 100) -> str:
 
         return f"{max_items} models generated!"
 
+    return "Cannot fetch data from https://randomuser.me/api/"
 
 def flex_print(data: Flextable, tab_indent: int = 0):
     print(("\t" * tab_indent), "-" * 20)
@@ -214,8 +215,8 @@ if __name__ == "__main__":
     )
     login_s.where(login_s["profile.calculate_age"]() < 40)
     login_s.where(login_s["profile.interests"].is_full_intersect([2, 6]))
-
     login_s.sort("profile.name")
+
     paging = login_s.paginate(1, 15)
 
     print("Found:", paging.count)

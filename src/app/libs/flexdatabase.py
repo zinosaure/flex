@@ -2,6 +2,7 @@ import math
 import os
 import glob
 import uuid
+import random
 import pickle
 
 from pathlib import Path
@@ -318,6 +319,9 @@ class Flextable(
 
         def empty(self):
             self.items = []
+
+        def shuffle(self):
+            random.shuffle(self.items)
 
         def count(self) -> int:
             return len(self.items)

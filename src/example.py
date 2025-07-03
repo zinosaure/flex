@@ -49,7 +49,7 @@ class Login(Flextable):
 
 
 class Photo(Flextable):
-    def __init__(self, login_id: int):
+    def __init__(self, login_id: int = 0):
         super().__init__(Flexmeta(self, "photos"))
         self.login_id: int = login_id
         self.remote_path: str = ""
@@ -215,7 +215,8 @@ if __name__ == "__main__":
     login_s.where(login_s["profile.calculate_age"]() < 40)
     login_s.where(login_s["profile.interests"].is_full_intersect([2, 6]))
 
-    paging = login_s.paginate(1, 5)
+    login_s.sort("profile.name")
+    paging = login_s.paginate(1, 15)
 
     print("Found:", paging.count)
     print("")

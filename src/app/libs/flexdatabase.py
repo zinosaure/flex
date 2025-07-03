@@ -43,7 +43,7 @@ class Flex(object):
 
 class Flexmeta:
     RootPath: Path = Path("/app/src/devnull")
-    Singletons: dict[str, dict[int, "Flextable"]] = {}
+    Singletons: dict[str, dict[int, dict[str, Any]]] = {}
     ConnectionPool: dict[str, "Flexmeta"] = {}
 
     def __init__(
@@ -98,11 +98,7 @@ class Flexmeta:
 
         if os.path.exists(filename := self.path_to_object(selected_id)):
             with open(filename, "rb") as handle:
-                if isinstance(items := pickle.load(handle), dict):
-                    for k in [k for k, _ in flextable.__dict__.items() if k in items]:
-                        setattr(flextable, k, items[k])
-
-            return flextable
+                return flextable.clone(pickle.load(handle))
 
     def save_object(self, flextable: "Flextable") -> bool:
         self.journal.load()
@@ -117,7 +113,7 @@ class Flexmeta:
         is_updated = os.path.exists(self.path_to_object(flextable.id))
 
         with open(self.path_to_object(flextable.id), "wb") as handle:
-            pickle.dump(flextable.__dict__, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            pickle.dump(flextable.on_dump(), handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         if is_updated:
             self.journal.commits.append(("UPDATED", flextable.id))
@@ -139,9 +135,9 @@ class Flexmeta:
 
         return False
 
-    def load_all(self) -> dict[int, "Flextable"]:
+    def load_all(self) -> dict[int, dict[str, Any]]:
         self.journal.load()
-        items: dict[int, "Flextable"] = {}
+        items: dict[int, dict[str, Any]] = {}
         select = os.path.join(self.name_d, f"{self.name}.select")
 
         if not self.has_commits() and os.path.exists(select):
@@ -264,8 +260,7 @@ class Flextable(
         flextable = type(self)()
 
         if items and isinstance(items, dict):
-            for k in [k for k, _ in flextable.__dict__.items() if k in items]:
-                setattr(flextable, k, items[k])
+            return flextable.on_load(items)
 
         return flextable
 
@@ -278,12 +273,32 @@ class Flextable(
     def select(self) -> "Flextable.Flexselect":
         return Flextable.Flexselect(self)
 
+    def on_dump(self) -> dict[str, Any]:
+        items: dict[str, Any] = {}
+
+        for k, v in self.__dict__.items():
+            if isinstance(v, Flextable) and v != self:
+                items[k] = v.on_dump()
+            else:
+                items[k] = v
+
+        return items
+
+    def on_load(self, items: dict) -> "Flextable":
+        for k, v in [(k, v) for k, v in self.__dict__.items() if k in items]:
+            if isinstance(v, Flextable) and v != self:
+                setattr(self, k, v.on_load(items[k]))
+            else:
+                setattr(self, k, items[k])
+
+        return self
+
     class Flexselect:
         def __init__(self, flextable: "Flextable"):
             self.flextable: Flextable = flextable
             self.items: list[Flextable] = list(
                 map(
-                    lambda d: flextable.clone(d),
+                    lambda item: flextable.clone(item),
                     self.flextable.flexmeta.load_all().values(),
                 )
             )

@@ -37,16 +37,16 @@ def protect(*protected):
 class Flex(object):
     def __init__(self, attributes: dict = {}):
         for k, v in attributes.items():
-            if isinstance(k, (list, tuple)):
+            if isinstance(v, (list, tuple)):
                 setattr(self, k, [Flex(x) if isinstance(x, dict) else x for x in v])
             else:
                 setattr(self, k, Flex(v) if isinstance(v, dict) else v)
 
 
 class Flexmeta:
-    RootPath: Path = Path("/app/src/devnull")
-    Singletons: dict[str, dict[int, dict[str, Any]]] = {}
-    ConnectionPool: dict[str, "Flexmeta"] = {}
+    RootPath: Path = Path("/app/src/flexstore")
+    flextable_selects: dict[str, dict[int, dict[str, Any]]] = {}
+    flexmeta_connections: dict[str, "Flexmeta"] = {}
 
     def __init__(
         self, flextable: "Flextable", name: str, min_id: int = 0, max_size: int = -1
@@ -62,15 +62,15 @@ class Flexmeta:
             journal, self.flextable, min_id + 1
         )
         self.journal.load()
-        Flexmeta.ConnectionPool[self.uniqid] = self
+        Flexmeta.flexmeta_connections[self.uniqid] = self
 
     def __str__(self) -> str:
         return f'Flexmeta(name="{self.name}", flextable="{self.flextable.__class__.__name__}", max_size={self.max_size}, journal={self.journal})'
 
     @staticmethod
     def load(uniqid: str) -> "Flexmeta":
-        if uniqid in Flexmeta.ConnectionPool:
-            return Flexmeta.ConnectionPool[uniqid]
+        if uniqid in Flexmeta.flexmeta_connections:
+            return Flexmeta.flexmeta_connections[uniqid]
 
         raise Exception(
             f"Flexmeta is broken, no connection created for this 'uniqid': {uniqid}"
@@ -78,7 +78,7 @@ class Flexmeta:
 
     @staticmethod
     def setPath(path: Path):
-        Flexmeta.RootPath = path / "devnull"
+        Flexmeta.RootPath = path / "flexstore"
 
     def count(self) -> int:
         return self.journal.count
@@ -137,19 +137,20 @@ class Flexmeta:
 
         return False
 
-    def load_all(self) -> dict[int, dict[str, Any]]:
+    def load_all(self, pattern: str = "*.object") -> dict[int, dict[str, Any]]:
         self.journal.load()
         items: dict[int, dict[str, Any]] = {}
         select = os.path.join(self.name_d, f"{self.name}.select")
+        uniqid: str = f"{self.uniqid}_{pattern}"
 
         if not self.has_commits() and os.path.exists(select):
-            if self.uniqid not in Flexmeta.Singletons:
+            if self.uniqid not in Flexmeta.flextable_selects:
                 with open(select, "rb") as handle:
-                    Flexmeta.Singletons[self.uniqid] = pickle.load(handle)
+                    Flexmeta.flextable_selects[uniqid] = pickle.load(handle)
 
-            return Flexmeta.Singletons[self.uniqid]
-        elif self.has_commits() and self.uniqid in Flexmeta.Singletons:
-            items = Flexmeta.Singletons[self.uniqid]
+            return Flexmeta.flextable_selects[uniqid]
+        elif self.has_commits() and uniqid in Flexmeta.flextable_selects:
+            items = Flexmeta.flextable_selects[uniqid]
 
             for what, selected_id in self.journal.commits:
                 if what == "DELETED":
@@ -160,7 +161,7 @@ class Flexmeta:
                             if isinstance(n_item := pickle.load(handle), dict):
                                 items[selected_id] = n_item
         else:
-            for temp in sorted(glob.glob(os.path.join(self.name_d, "*.object"))):
+            for temp in sorted(glob.glob(os.path.join(self.name_d, pattern))):
                 if os.path.exists(temp):
                     with open(temp, "rb") as handle:
                         if isinstance(item := pickle.load(handle), dict):
@@ -173,9 +174,9 @@ class Flexmeta:
         self.journal.count = len(items)
         self.journal.commits = []
         self.journal.save()
-        Flexmeta.Singletons[self.uniqid] = items
+        Flexmeta.flextable_selects[uniqid] = items
 
-        return Flexmeta.Singletons[self.uniqid]
+        return Flexmeta.flextable_selects[uniqid]
 
     class Journal:
         def __init__(self, filename: str, flextable: "Flextable", next_id: int):
@@ -259,7 +260,7 @@ class Flextable(
         return value
 
     def clone(self, items: dict = {}) -> "Flextable":
-        flextable = type(self)()
+        flextable = type(self)()  # type: ignore
 
         if items and isinstance(items, dict):
             return flextable.on_load(items)
@@ -272,8 +273,10 @@ class Flextable(
     def delete(self) -> bool:
         return self.flexmeta.delete_object(self.id)
 
-    def select(self) -> "Flextable.Flexselect":
-        return Flextable.Flexselect(self)
+    def select(self, pattern: str = "*.object") -> "Flextable.Flexselect":
+        return Flextable.Flexselect(
+            self, list(self.flexmeta.load_all(pattern).values())
+        )
 
     def to_json(self, indent: Optional[int] = None) -> str:
         def default(o: object) -> Any:
@@ -281,7 +284,7 @@ class Flextable(
                 return o.__dict__
             except Exception:
                 return str(o)
-            
+
         return json.dumps(self.on_dump(), indent=indent, default=default)
 
     def on_dump(self) -> dict[str, Any]:
@@ -305,13 +308,10 @@ class Flextable(
         return self
 
     class Flexselect:
-        def __init__(self, flextable: "Flextable"):
+        def __init__(self, flextable: "Flextable", items: list[dict[str, Any]] = []):
             self.flextable: Flextable = flextable
             self.items: list[Flextable] = list(
-                map(
-                    lambda item: flextable.clone(item),
-                    self.flextable.flexmeta.load_all().values(),
-                )
+                map(lambda item: flextable.clone(item), items)
             )
 
         def __getattr__(self, name: str) -> "Flextable.Flexselect.Statement":
@@ -329,6 +329,9 @@ class Flextable(
 
         def empty(self):
             self.items = []
+
+        def extend(self, items: list["Flextable"]):
+            self.items.extend(items)
 
         def shuffle(self):
             random.shuffle(self.items)
@@ -381,11 +384,12 @@ class Flextable(
         def paginate(
             self, current: int = 0, items_per_page: int = 10, nb_buttons: int = 11
         ) -> PaginateT:
-            buttons = []
+            buttons: list[int] = []
+            paginations: list[tuple[int, str, bool]] = []
             total_item = self.count()
 
             if current <= 0 or items_per_page <= 0 or total_item <= 0:
-                return PaginateT(total_item, buttons)
+                return PaginateT(total_item, paginations)
 
             if current > (max_button := math.ceil(total_item / items_per_page)):
                 current = max_button
@@ -413,18 +417,18 @@ class Flextable(
                 ]
 
             if not buttons:
-                return PaginateT(total_item, buttons)
+                return PaginateT(total_item, paginations)
 
-            for i, n in enumerate(buttons):
-                buttons[i] = (n, str(n), n == current)
+            for n in buttons:
+                paginations.append((n, str(n), n == current))
 
-            if buttons[0][0] > 1:
-                buttons.insert(0, (1, "1 ... ", False))
+            if paginations[0][0] > 1:
+                paginations.insert(0, (1, "1 ... ", False))
 
-            if buttons[-1][0] < max_button:
-                buttons.append((max_button, f" ... {max_button}", False))
+            if paginations[-1][0] < max_button:
+                paginations.append((max_button, f" ... {max_button}", False))
 
-            return PaginateT(total_item, buttons)
+            return PaginateT(total_item, paginations)
 
         def union_join(
             self, name: str, select: "Flextable.Flexselect", using: str, on: str = ""
@@ -470,20 +474,23 @@ class Flextable(
 
         class Statement:
             def __init__(
-                self, items: list["Flextable"], name: str, args: tuple | list = ()
+                self,
+                items: list["Flextable"],
+                name: str,
+                args: tuple | list | dict = (),
             ):
                 self.name: str = name
-                self.args: list = args
+                self.args: tuple | list | dict = args
                 self.items: list["Flextable"] = items
 
             def __call__(self, *args, **kwargs):
                 self.args = args or kwargs
                 return self
 
-            def __eq__(self, value: Any) -> list["Flextable"]:
+            def __eq__(self, value: Any) -> list["Flextable"]:  # type: ignore
                 return [e for e in self.items if e.prop(self.name, self.args) == value]
 
-            def __ne__(self, value: Any) -> list["Flextable"]:
+            def __ne__(self, value: Any) -> list["Flextable"]:  # type: ignore
                 return [e for e in self.items if e.prop(self.name, self.args) != value]
 
             def __lt__(self, value: Any) -> list["Flextable"]:
@@ -571,7 +578,7 @@ class Flextable(
                 ]
 
             def is_full_intersect(self, pattern: list[Any]) -> list["Flextable"]:
-                pattern = set(pattern)
+                pattern = set(pattern)  # type: ignore
                 return [
                     e
                     for e in self.items

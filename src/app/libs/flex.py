@@ -137,20 +137,19 @@ class Flexmeta:
 
         return False
 
-    def load_all(self, pattern: str = "*.object") -> dict[int, dict[str, Any]]:
+    def load_all(self) -> dict[int, dict[str, Any]]:
         self.journal.load()
         items: dict[int, dict[str, Any]] = {}
         select = os.path.join(self.name_d, f"{self.name}.select")
-        uniqid: str = f"{self.uniqid}_{pattern}"
 
         if not self.has_commits() and os.path.exists(select):
             if self.uniqid not in Flexmeta.flextable_selects:
                 with open(select, "rb") as handle:
-                    Flexmeta.flextable_selects[uniqid] = pickle.load(handle)
+                    Flexmeta.flextable_selects[self.uniqid] = pickle.load(handle)
 
-            return Flexmeta.flextable_selects[uniqid]
-        elif self.has_commits() and uniqid in Flexmeta.flextable_selects:
-            items = Flexmeta.flextable_selects[uniqid]
+            return Flexmeta.flextable_selects[self.uniqid]
+        elif self.has_commits() and self.uniqid in Flexmeta.flextable_selects:
+            items = Flexmeta.flextable_selects[self.uniqid]
 
             for what, selected_id in self.journal.commits:
                 if what == "DELETED":
@@ -161,7 +160,7 @@ class Flexmeta:
                             if isinstance(n_item := pickle.load(handle), dict):
                                 items[selected_id] = n_item
         else:
-            for temp in sorted(glob.glob(os.path.join(self.name_d, pattern))):
+            for temp in sorted(glob.glob(os.path.join(self.name_d, "*.object"))):
                 if os.path.exists(temp):
                     with open(temp, "rb") as handle:
                         if isinstance(item := pickle.load(handle), dict):
@@ -174,9 +173,9 @@ class Flexmeta:
         self.journal.count = len(items)
         self.journal.commits = []
         self.journal.save()
-        Flexmeta.flextable_selects[uniqid] = items
+        Flexmeta.flextable_selects[self.uniqid] = items
 
-        return Flexmeta.flextable_selects[uniqid]
+        return Flexmeta.flextable_selects[self.uniqid]
 
     class Journal:
         def __init__(self, filename: str, flextable: "Flextable", next_id: int):
@@ -273,10 +272,8 @@ class Flextable(
     def delete(self) -> bool:
         return self.flexmeta.delete_object(self.id)
 
-    def select(self, pattern: str = "*.object") -> "Flextable.Flexselect":
-        return Flextable.Flexselect(
-            self, list(self.flexmeta.load_all(pattern).values())
-        )
+    def select(self) -> "Flextable.Flexselect":
+        return Flextable.Flexselect(self, list(self.flexmeta.load_all().values()))
 
     def to_json(self, indent: Optional[int] = None) -> str:
         def default(o: object) -> Any:
@@ -330,9 +327,6 @@ class Flextable(
         def empty(self):
             self.items = []
 
-        def extend(self, items: list["Flextable"]):
-            self.items.extend(items)
-
         def shuffle(self):
             random.shuffle(self.items)
 
@@ -350,6 +344,9 @@ class Flextable(
                 return {item.id: item for item in self.items}
 
             return {item.prop(name): item for item in self.items}
+        
+        def distinct(self, name: str = ""):
+            self.items = list(self.compact_dict(name).values())
 
         def map(
             self, callback: Callable[["Flextable"], "Flextable"]
@@ -429,6 +426,9 @@ class Flextable(
                 paginations.append((max_button, f" ... {max_button}", False))
 
             return PaginateT(total_item, paginations)
+
+        def extend(self, select: "Flextable.Flexselect"):
+            self.items.extend(select.items)
 
         def union_join(
             self, name: str, select: "Flextable.Flexselect", using: str, on: str = ""

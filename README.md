@@ -5,6 +5,7 @@ Flex is an ORM-style library without database connections. It's ideally designed
 You can perform searches like this:
 
 ```
+select = MyClass().select()
 select.where(select.string_attribute.contains("xxx"))
 select.where(select.int_attribute > 10)
 ```
@@ -27,7 +28,7 @@ Only the class attributes are stored locally with Pickle during serialization. F
 ## Good to know?
 
 - The ID and a UUID are generated automatically.
-- The data can be modified before storage and reuse.
+- The data can be modified before and after storage.
 - Comparison operations can be performed on attributes and methods.
 - It is possible to use the "string dot notation" to access attributes.
 
@@ -63,7 +64,7 @@ class Person(Flextable):
         return datetime.now().year - self.birth_year
 
 
-Flexmeta.setPath(Path("../src"))
+Flexmeta.setPath(Path("./src")) # important if you are not using docker working directory: /app/src
 person = Person()
 person.name = "Juan Green"
 person.birth_year = 2002

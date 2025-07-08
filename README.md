@@ -28,7 +28,7 @@ Only the class attributes are stored locally with Pickle during serialization. F
 ## Good to know?
 
 - The ID and a UUID are generated automatically.
-- The data can be modified before and after storage.
+- You can decide how to serialiaze/deserialize the data.
 - Comparison operations can be performed on attributes and methods.
 - It is possible to use the "string dot notation" to access attributes.
 
@@ -42,6 +42,8 @@ from pathlib import Path
 from typing import Optional
 from datetime import datetime
 from app.libs.flex import Flexmeta, Flextable
+
+CURRENT_YEAR = datetime.now().year
 
 
 class Contact:
@@ -61,7 +63,7 @@ class Person(Flextable):
         return Flextable._load(Person(), selected_id)
 
     def actual_age(self) -> int:
-        return datetime.now().year - self.birth_year
+        return CURRENT_YEAR - self.birth_year
 
 
 Flexmeta.setPath(Path("./src")) # important if you are not using docker working directory: /app/src
@@ -86,9 +88,14 @@ person.commit()
 persons = person.select()
 
 print("Person count (before):", persons.count())
+
+persons.where(persons.id >= 1)
 persons.where(persons.name.contains("juan"))
+# string dot notation - accessing "contact.name" attribute
 persons.where(persons["contact.mail"].not_suffix("@gmail.com"))
+# comparaison with method - persons["actual_age"]() >= 18 is also possible
 persons.where(persons.actual_age() >= 18)
+
 print("Person count (after):", persons.count())
 
 for person in persons.fetch_all():

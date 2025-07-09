@@ -1,4 +1,5 @@
 import sys
+import json
 
 sys.path.append("../src")
 
@@ -17,7 +18,7 @@ class Person(Flextable):
     def __init__(self):
         super().__init__(Flexmeta(self, "persons", 10000, 100))
         self.name: str = ""
-        self.birth_year: int = 0
+        self.dob: str = datetime.today().strftime("%Y-%m-%d")
         self.contact: Contact = Contact()
 
     @staticmethod
@@ -25,35 +26,28 @@ class Person(Flextable):
         return Flextable._load(Person(), selected_id)
 
     def actual_age(self) -> int:
-        return datetime.now().year - self.birth_year
+        return datetime.now().year - datetime.fromisoformat(self.dob).year
 
 
 Flexmeta.setPath(Path("../src"))
-person = Person()
-person.name = "Juan Green"
-person.birth_year = 2002
-person.contact.mail = "thomas15@yahoo.com"
-person.commit()
 
-person = Person()
-person.name = "Juan Mann"
-person.birth_year = 2012
-person.contact.mail = "udavis@hotmail.com"
-person.commit()
+## uncomment code below to generate data
+# with open('./persons.json') as handle:
+#     for data in json.load(handle):
+#         person = Person()
+#         person.name = f'{data["name"]["last"]} {data["name"]["first"]}'
+#         person.dob = str(data["dob"]["date"]).split("T")[0]
+#         person.contact.mail = data["email"]
+#         person.commit()
 
-person = Person()
-person.name = "Mary Alvarez"
-person.birth_year = 1998
-person.contact.mail = "leetara@gmail.com"
-person.commit()
+person_s = Person().select()
 
-persons = person.select()
+print("Person count (before):", person_s.count())
+person_s.where(person_s.name.contains("jack"))
+person_s.where(person_s["contact.mail"].contains("@example.com"))
+person_s.where(person_s.actual_age() >= 18)
 
-print("Person count (before):", persons.count())
-persons.where(persons.name.contains("juan"))
-persons.where(persons["contact.mail"].not_suffix("@gmail.com"))
-persons.where(persons.actual_age() >= 18)
-print("Person count (after):", persons.count())
-
-for person in persons.fetch_all():
+for person in person_s.fetch_all():
     print(person.to_json(indent=4))
+
+print("Person count (after):", person_s.count())

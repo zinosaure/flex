@@ -231,6 +231,9 @@ class Flextable(
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(flexmeta={self.flexmeta})"
 
+    def __hash__(self) -> int:
+        return hash(self.uniqid)
+
     @property
     def flexmeta(self) -> Flexmeta:
         return Flexmeta.load(self._flexmeta_uniqid_)
@@ -333,19 +336,24 @@ class Flextable(
         def count(self) -> int:
             return len(self.items)
 
-        def compact(self, name: str = "") -> list[int]:
+        def compact(self, name: str = "") -> list[int | Any]:
             if not name:
                 return [item.id for item in self.items]
 
             return [item.prop(name) for item in self.items]
 
-        def compact_dict(self, name: str = "") -> dict[int, "Flextable"]:
+        def compact_dict(
+            self, name: str | list[str] = ""
+        ) -> dict[int | str, "Flextable"]:
             if not name:
                 return {item.id: item for item in self.items}
 
-            return {item.prop(name): item for item in self.items}
-        
-        def distinct(self, name: str = ""):
+            if isinstance(name, str):
+                name = [name]
+
+            return {"_".join([str(item.prop(n)) for n in name]): item for item in self.items}
+
+        def distinct(self, name: str | list[str] = ""):
             self.items = list(self.compact_dict(name).values())
 
         def map(
@@ -428,7 +436,7 @@ class Flextable(
             return PaginateT(total_item, paginations)
 
         def extend(self, select: "Flextable.Flexselect"):
-            self.items.extend(select.items)
+            self.items = list(set(select.items) | set(self.items))
 
         def union_join(
             self, name: str, select: "Flextable.Flexselect", using: str, on: str = ""

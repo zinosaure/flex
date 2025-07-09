@@ -25,6 +25,7 @@ class LogMessage(Flextable):
         self.service: str = ""
         self.message: str = ""
 
+
 Flexmeta.setPath(Path("../src"))
 
 ## uncomment code below to generate data
@@ -66,4 +67,3 @@ for message in message_s.fetch_all():
     print(message.to_json(indent=4))
 
 print("Log messages count (after):", message_s.count())
-

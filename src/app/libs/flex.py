@@ -351,7 +351,9 @@ class Flextable(
             if isinstance(name, str):
                 name = [name]
 
-            return {"_".join([str(item.prop(n)) for n in name]): item for item in self.items}
+            return {
+                "_".join([str(item.prop(n)) for n in name]): item for item in self.items
+            }
 
         def distinct(self, name: str | list[str] = ""):
             self.items = list(self.compact_dict(name).values())

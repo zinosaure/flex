@@ -23,7 +23,7 @@ Bug reports and merge requests are encouraged at the Flex repository on github.
 
 Only the class attributes are stored locally with Pickle during serialization. For deserialization, the data is reinjected into the corresponding attributes.
 
-> Regarding searching, the data *is stored in RAM in dict format*. To avoid slowness or crashes, do not search a large amount of data at once. Consider splitting the data [see example](src/examples/large_data.py)
+> Regarding searching, the data *is stored in RAM in dict format*. To avoid slowness or crashes, do not search a large amount of data at once. Consider splitting the data [see example](examples/large_data.py)
 
 ## Good to know?
 
@@ -102,7 +102,7 @@ for person in persons.fetch_all():
     print(person.to_json(indent=4))
 ```
 
-See the [examples](src/examples) directory on GitHub for example scripts. These can be run on docker to see how Flex works and behaves, and how to use it. Your contributions are most welcome!
+See the [examples](examples) directory on GitHub for example scripts. These can be run on docker to see how Flex works and behaves, and how to use it. Your contributions are most welcome!
 
 
 # Install

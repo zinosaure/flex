@@ -52,6 +52,7 @@ message_s = LogMessage().select()
 print("Logs count (before):", log_s.count())
 
 log_s.where(log_s.date.is_in(["2025-06-15", "2025-06-30"]))
+log_s.distinct("date")
 
 print("Logs count (after):", log_s.count())
 print("Log messages count (before):", message_s.count())
@@ -60,8 +61,6 @@ for log in log_s:
     temp_message_s = LogMessage(log).select()
     temp_message_s.where(temp_message_s.status == "INFO")
     message_s.extend(temp_message_s)
-
-message_s.distinct(["id", "date"])
 
 for message in message_s.fetch_all():
     print(message.to_json(indent=4))

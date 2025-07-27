@@ -455,7 +455,9 @@ class Flextable(
 
                 self.items.append(item)
 
-            n_select = Flextable.Flexselect(self.flextable).compact_dict(on)
+            n_select = Flextable.Flexselect(
+                self.flextable, list(self.flextable.flexmeta.load_all().values())
+            ).compact_dict(on)
 
             for k, item in right_table.items():
                 if k not in left_table:
